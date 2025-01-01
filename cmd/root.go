@@ -3,18 +3,15 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"os"
-	"strconv"
-
-	"sort"
-	"time"
-
-	"github.com/pterm/pterm"
-	"golang.org/x/term"
-
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
+	"os"
+	"sort"
+	"strconv"
+	"time"
 )
 
 type Tday struct {
@@ -136,8 +133,8 @@ var rootCmd = &cobra.Command{
 	Use:   "git-reports <path>",
 	Short: "Visualize git reports",
 	Long:  "Visualize git reports",
-	Args: cobra.ExactArgs(1),
-	
+	Args:  cobra.ExactArgs(1),
+
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
 
@@ -152,14 +149,14 @@ var rootCmd = &cobra.Command{
 
 		commits := make(map[string]int)
 		commitsPerDev := make(map[string]int)
-        var commitsPerHour [24]int
+		var commitsPerHour [24]int
 
 		_ = cIter.ForEach(func(c *object.Commit) error {
-			if developerEmail != "_"{
-                if c.Author.Email != developerEmail {
-                    return nil
-                }
-            }
+			if developerEmail != "_" {
+				if c.Author.Email != developerEmail {
+					return nil
+				}
+			}
 			year, month, date := c.Author.When.Local().Date()
 			key := fmt.Sprintf("%d-%d-%d", year, month, date)
 			_, exists := commits[key]
@@ -176,15 +173,15 @@ var rootCmd = &cobra.Command{
 				commitsPerDev[c.Author.Name]++
 			}
 
-            commitsPerHour[c.Author.When.Local().Hour()]++
+			commitsPerHour[c.Author.When.Local().Hour()]++
 
 			return nil
 		})
 
-        if len(commits) == 0 {
-            fmt.Println("No commits where found!")
-            os.Exit(1)
-        }
+		if len(commits) == 0 {
+			fmt.Println("No commits where found!")
+			os.Exit(1)
+		}
 
 		keys := make([]string, 0, len(commits))
 
@@ -244,47 +241,42 @@ var rootCmd = &cobra.Command{
 			years[k].p()
 		}
 
-
-        authorNames := make([]string, 0, len(commitsPerDev))
+		authorNames := make([]string, 0, len(commitsPerDev))
 
 		for k := range commitsPerDev {
 			authorNames = append(authorNames, k)
 		}
 
+		sort.SliceStable(authorNames, func(i, j int) bool {
+			return commitsPerDev[authorNames[i]] > commitsPerDev[authorNames[j]]
+		})
 
-        sort.SliceStable(authorNames , func(i, j int) bool{
-            return commitsPerDev[authorNames[i]] > commitsPerDev[authorNames[j]]
-        })
+		var barData []pterm.Bar
+		var bar pterm.Bar
+		for _, authorName := range authorNames {
+			bar.Label = authorName
+			bar.Value = commitsPerDev[authorName]
+			barData = append(barData, bar)
+		}
 
+		fmt.Println()
+		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).Println("Commit count per developer")
+		pterm.DefaultBarChart.WithBars(barData).WithHorizontal().Render()
 
-        var barData []pterm.Bar
-        var bar pterm.Bar
-        for _, authorName := range authorNames {
-            bar.Label = authorName
-            bar.Value = commitsPerDev[authorName]
-            barData = append(barData, bar)
-        }
-        
-        fmt.Println()
-        pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).Println("Commit count per developer")
-        pterm.DefaultBarChart.WithBars(barData).WithHorizontal().Render()
-
-
-        
-        var hourData []pterm.Bar
-        var hour pterm.Bar
-	    for i := 1; i < 24; i++ {
-            hour.Label = strconv.Itoa(i)
-            hour.Value = commitsPerHour[i]
-            hourData = append(hourData, hour)
-        }
-        pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).Println("Commits per hour of day (local)")
-        pterm.DefaultBarChart.WithShowValue().WithBars(hourData).WithHorizontal().WithWidth(100).Render()
+		var hourData []pterm.Bar
+		var hour pterm.Bar
+		for i := 1; i < 24; i++ {
+			hour.Label = strconv.Itoa(i)
+			hour.Value = commitsPerHour[i]
+			hourData = append(hourData, hour)
+		}
+		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).Println("Commits per hour of day (local)")
+		pterm.DefaultBarChart.WithShowValue().WithBars(hourData).WithHorizontal().WithWidth(100).Render()
 	},
 }
 
 func Execute() {
-    rootCmd.PersistentFlags().StringVar(&developerEmail, "dev", "_", "choose developer by email")
+	rootCmd.PersistentFlags().StringVar(&developerEmail, "dev", "_", "choose developer by email")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
