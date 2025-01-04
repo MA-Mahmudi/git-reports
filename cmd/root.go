@@ -291,7 +291,8 @@ var rootCmd = &cobra.Command{
 
 		fmt.Println()
 		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).Println("Commit count per developer")
-		pterm.DefaultBarChart.WithBars(barData).WithHorizontal().Render()
+		err = pterm.DefaultBarChart.WithBars(barData).WithHorizontal().WithWidth(90).WithShowValue().Render()
+		checkIfError(err)
 
 		var hourData []pterm.Bar
 		var hour pterm.Bar
@@ -301,7 +302,8 @@ var rootCmd = &cobra.Command{
 			hourData = append(hourData, hour)
 		}
 		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).Println("Commits per hour of day (local)")
-		pterm.DefaultBarChart.WithShowValue().WithBars(hourData).WithHorizontal().WithWidth(100).Render()
+		err = pterm.DefaultBarChart.WithShowValue().WithBars(hourData).WithHorizontal().WithWidth(100).Render()
+		checkIfError(err)
 	},
 }
 
@@ -309,7 +311,8 @@ func Execute() {
 	rootCmd.PersistentFlags().StringVar(&developerEmail, "dev", "_", "choose developer by email")
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, err = fmt.Fprintln(os.Stderr, err)
+		checkIfError(err)
 		os.Exit(1)
 	}
 }
